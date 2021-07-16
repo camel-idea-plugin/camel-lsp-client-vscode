@@ -1,6 +1,6 @@
 'use strict';
 
-import { getRedHatService } from '@redhat-developer/vscode-redhat-telemetry/lib';
+import { getRedHatService, TelemetryEvent, TelemetryService } from '@redhat-developer/vscode-redhat-telemetry/lib';
 import * as path from 'path';
 import { workspace, ExtensionContext, window, StatusBarAlignment, commands, TextEditor, languages } from 'vscode';
 import { LanguageClientOptions, DidChangeConfigurationNotification } from 'vscode-languageclient';
@@ -9,6 +9,7 @@ import { retrieveJavaExecutable } from './JavaManager';
 
 const LANGUAGE_CLIENT_ID = 'LANGUAGE_ID_APACHE_CAMEL';
 const SETTINGS_TOP_LEVEL_KEY_CAMEL = 'camel';
+export let telemetryService: TelemetryService;
 
 export async function activate(context: ExtensionContext) {
 	// Let's enable Javadoc symbols autocompletion, shamelessly copied from MIT licensed code at
@@ -70,14 +71,19 @@ export async function activate(context: ExtensionContext) {
 	});
 
 	});
+
+	const redhatService = await getRedHatService(context);
+	telemetryService = await redhatService.getTelemetryService();
+	telemetryService.sendStartupEvent();
+	languageClient.onTelemetry(async (e: TelemetryEvent) => {
+		return telemetryService.send(e);
+	});
+
 	let disposable = languageClient.start();
 	// Push the disposable to the context's subscriptions so that the
 	// client can be deactivated on extension deactivation
 	context.subscriptions.push(disposable);
 
-	const redhatService = await getRedHatService(context);
-	const telemetryService = await redhatService.getTelemetryService();
-	telemetryService.sendStartupEvent();
 }
 
 function getCamelSettings() {
